@@ -1,0 +1,6 @@
+//Extension	| Mimetype à utiliser
+//.mp3	| audio/mpeg ou audio/mp4
+//.m4a	| audio/mp4
+//.ogg	| audio/ogg
+//Dans le code ci-dessus, j’ai utilisé audio/mp4 qui fonctionne pour .mp3 et .m4a.
+//Si ton fichier est en .ogg, remplace mimetype: "audio/mp4" par mimetype: "audio/ogg"
