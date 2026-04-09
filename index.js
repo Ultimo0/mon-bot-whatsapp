@@ -1,5 +1,6 @@
 // ===============================
 // 📦 BOT WHATSAPP - CABLO V1.4 (COMPLET AVEC ANTI-LINK)
+// Version adaptée pour Render (connexion automatique par QR code)
 // ===============================
 const {
     default: makeWASocket,
@@ -16,6 +17,11 @@ const path = require("path");
 
 const config = require("./config");
 const { send, clean } = require("./lib/helpers");
+
+// ===============================
+// Détection de l'environnement Render
+// ===============================
+const isRender = process.env.RENDER === "true";
 
 // ===============================
 // 🧠 CACHES
@@ -47,7 +53,7 @@ if (fs.existsSync(commandsPath)) {
 console.log("📦 Commandes chargées :", Object.keys(commands));
 
 // ===============================
-// 🧠 FONCTION DE QUESTION
+// 🧠 FONCTION DE QUESTION (uniquement utilisée en local)
 // ===============================
 function ask(question) {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -77,23 +83,38 @@ async function startBot(retryCount = 0) {
     sock.ev.on("creds.update", saveCreds);
 
     // ===============================
-    // PREMIÈRE CONNEXION (choix QR / pairing)
+    // PREMIÈRE CONNEXION (adaptée selon l'environnement)
     // ===============================
     const sessionExists = fs.existsSync("./session") && fs.readdirSync("./session").length > 0;
+
     if (!sock.authState.creds.registered && !sessionExists) {
-        console.log("\n🔐 Aucune session trouvée. Choisissez :");
-        console.log("   ➤ 'qr' pour QR code");
-        console.log("   ➤ 'pc' pour Pairing Code");
-        const method = await ask("👉 Votre choix : ");
-        if (method === "pc") {
-            const number = await ask("📱 Numéro (ex: 237620471245) : ");
-            const code = await sock.requestPairingCode(number);
-            console.log(`🔐 Code : ${code.match(/.{1,4}/g).join("-")}`);
-            console.log("➡️ WhatsApp > Appareils liés > Lier un appareil");
+        if (isRender) {
+            // Mode automatique sur Render : QR code
+            console.log("📱 Environnement Render détecté → utilisation du QR code automatique");
+            console.log("Scannez le QR code ci-dessous avec WhatsApp (Appareils liés > Lier un appareil) :");
+            sock.ev.on("connection.update", (up) => {
+                if (up.qr) {
+                    qrcode.generate(up.qr, { small: true });
+                }
+            });
+            // Laisser le temps au QR de s'afficher
+            await new Promise(r => setTimeout(r, 2000));
         } else {
-            console.log("📱 QR code généré. Scannez-le :");
-            sock.ev.on("connection.update", (up) => { if (up.qr) qrcode.generate(up.qr, { small: true }); });
-            await new Promise(r => setTimeout(r, 1000));
+            // Mode interactif (local)
+            console.log("\n🔐 Aucune session trouvée. Choisissez :");
+            console.log("   ➤ 'qr' pour QR code");
+            console.log("   ➤ 'pc' pour Pairing Code");
+            const method = await ask("👉 Votre choix : ");
+            if (method === "pc") {
+                const number = await ask("📱 Numéro (ex: 237620471245) : ");
+                const code = await sock.requestPairingCode(number);
+                console.log(`🔐 Code : ${code.match(/.{1,4}/g).join("-")}`);
+                console.log("➡️ WhatsApp > Appareils liés > Lier un appareil");
+            } else {
+                console.log("📱 QR code généré. Scannez-le :");
+                sock.ev.on("connection.update", (up) => { if (up.qr) qrcode.generate(up.qr, { small: true }); });
+                await new Promise(r => setTimeout(r, 1000));
+            }
         }
     } else if (sessionExists) {
         console.log("🔑 Session existante détectée. Tentative de connexion automatique...");
