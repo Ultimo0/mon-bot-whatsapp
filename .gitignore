@@ -1,0 +1,4 @@
+echo node_modules/ > .gitignore
+echo session/ >> .gitignore
+echo data/ >> .gitignore
+echo .env >> .gitignore
